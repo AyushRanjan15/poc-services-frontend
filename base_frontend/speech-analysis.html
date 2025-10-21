@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Analysis - Redenlab</title>
+  <link rel="stylesheet" href="css/speech-analysis.css">
+</head>
+<body>
+  <!-- Back to Home -->
+  <header class="topbar">
+    <a class="home-link" href="index.html" aria-label="Back to Home">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M14 7l-5 5 5 5V7z"></path>
+      </svg>
+      Home
+    </a>
+    <span class="page-title">Speech Analysis</span>
+  </header>
+
+  <main class="container">
+    <div class="analysis-container">
+      <form id="analysisForm" class="analysis-form">
+        <!-- File Upload Section -->
+        <section class="card upload-section">
+          <h2>Audio Files</h2>
+          <div class="upload-options">
+            <div class="upload-type">
+              <input type="radio" id="singleFile" name="uploadType" value="single" checked>
+              <label for="singleFile">Single Audio File</label>
+              <input type="file" id="fileInput" accept=".wav,.mp3,.m4a" style="display: none;">
+              <div class="upload-area" id="singleUploadArea">
+                <div class="upload-content">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14,2 14,8 20,8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  <p>Click to select or drag & drop audio file</p>
+                  <span class="file-types">Supported: WAV, MP3, M4A</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="upload-type">
+              <input type="radio" id="multipleFiles" name="uploadType" value="multiple">
+              <label for="multipleFiles">Multiple Audio Files (Folder)</label>
+              <input type="file" id="folderInput" webkitdirectory multiple accept=".wav,.mp3,.m4a" style="display: none;">
+              <div class="upload-area disabled" id="folderUploadArea">
+                <div class="upload-content">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <p>Click to select folder with audio files</p>
+                  <span class="file-types">Will analyze all audio files in folder</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="upload-type">
+              <input type="radio" id="recordAudio" name="uploadType" value="record">
+              <label for="recordAudio">Record Audio</label>
+              <div class="upload-area disabled" id="recordUploadArea">
+                <div class="upload-content">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                  </svg>
+                  <p>Click to start recording</p>
+                  <span class="file-types">Record directly from microphone</span>
+                  <div class="recording-controls" id="recordingControls" style="display: none;">
+                    <button type="button" id="startRecordBtn" class="record-btn start">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10"></circle>
+                      </svg>
+                      Start Recording
+                    </button>
+                    <button type="button" id="stopRecordBtn" class="record-btn stop" style="display: none;">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="6" width="12" height="12"></rect>
+                      </svg>
+                      Stop Recording
+                    </button>
+                    <div id="recordingStatus" class="recording-status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="selected-files" id="selectedFiles"></div>
+        </section>
+
+        <!-- Feature Selection -->
+        <section class="card feature-section">
+          <h2>Analysis Feature</h2>
+          <div class="feature-options">
+            <div class="feature-option">
+              <input type="radio" id="intelligibility" name="feature" value="intelligibility" checked>
+              <label for="intelligibility">
+                <span class="feature-title">Intelligibility</span>
+                <span class="feature-desc">Measures speech clarity and comprehensibility</span>
+              </label>
+            </div>
+            <div class="feature-option disabled">
+              <input type="radio" id="naturalness" name="feature" value="naturalness" disabled>
+              <label for="naturalness" class="disabled-label">
+                <span class="feature-title">Naturalness</span>
+                <span class="feature-desc">Measures naturalness of speech patterns (Coming Soon)</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Disease/Disorder Selection -->
+        <section class="card disorder-section">
+          <h2>Disease/Disorder</h2>
+          <select id="disorderSelect" name="disorder" class="disorder-dropdown">
+            <option value="als">ALS (Amyotrophic Lateral Sclerosis)</option>
+            <option value="dementia" disabled>Dementia (Coming Soon)</option>
+            <option value="parkinsons" disabled>Parkinson's Disease (Coming Soon)</option>
+            <option value="stroke" disabled>Stroke (Coming Soon)</option>
+            <option value="dysarthria" disabled>Dysarthria (Coming Soon)</option>
+            <option value="apraxia" disabled>Apraxia (Coming Soon)</option>
+          </select>
+        </section>
+
+        <!-- Submit Button -->
+        <section class="submit-section">
+          <button type="submit" id="submitBtn" class="submit-btn" disabled>
+            <span class="btn-text">Analyze Audio</span>
+            <span class="btn-loading" style="display: none;">
+              <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+                  <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                  <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                </circle>
+              </svg>
+              Processing...
+            </span>
+          </button>
+        </section>
+      </form>
+
+      <!-- Results Section -->
+      <section class="card results-section" id="resultsSection" style="display: none;">
+        <h2>Analysis Results</h2>
+        <div class="results-container" id="resultsContainer"></div>
+        <div class="download-section">
+          <button id="downloadCsvBtn" class="download-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7,10 12,15 17,10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Results (CSV)
+          </button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/speech-analysis.js"></script>
+  <script>
+    // Keyboard shortcut to return home
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>
