@@ -10,9 +10,9 @@ const detectionApp = {
     noiseDetector: null,
     frameCount: 0,
     isRunning: false,
-    currentDisplayState: null,
-    stateFrameCount: 0,
-    stateChangeThreshold: 3
+    currentDisplayState: null, // 'speech' or 'no-speech'
+    consecutiveFrames: 0, // Count of consecutive frames in the SAME new state
+    stateChangeThreshold: 5 // Number of consecutive frames needed to change state
 };
 
 // DOM elements - will be initialized when tab is active
@@ -147,7 +147,7 @@ function stopDetection() {
     detectionApp.isRunning = false;
     detectionApp.frameCount = 0;
     detectionApp.currentDisplayState = null;
-    detectionApp.stateFrameCount = 0;
+    detectionApp.consecutiveFrames = 0;
 
     // Update UI
     if (detectionElements.startBtn) detectionElements.startBtn.disabled = false;
@@ -189,53 +189,56 @@ function onAudioFrame(frameData) {
  * Handle noise detection result from backend
  */
 function onNoiseDetectionResult(result) {
-    // Apply temporal smoothing
-    const smoothed = detectionApp.noiseDetector.addDetection(result.isNoisy, result.confidence);
+    // Backend returns: isNoisy = true means noise/no-speech, isNoisy = false means clean speech
+    // We need to invert this: isSpeech = NOT isNoisy
+    const isSpeech = !result.isNoisy;
 
-    // Update UI
+    // Apply temporal smoothing
+    const smoothed = detectionApp.noiseDetector.addDetection(isSpeech, result.confidence);
+
+    // Update UI - smoothed.isNoisy is actually smoothed.isSpeech now after our change
     updateNoiseStatus(smoothed.isNoisy, smoothed.confidence, result.vad_probability);
 }
 
 /**
  * Update noise status in UI
+ * Logic: High probability/confidence = SPEECH, Low probability/confidence = NO SPEECH
  */
-function updateNoiseStatus(isNoisy, confidence, vadProbability) {
-    const desiredState = isNoisy ? 'no-speech' : 'speech';
+function updateNoiseStatus(isSpeech, confidence, vadProbability) {
+    // Determine desired state based on speech detection
+    // isSpeech should be true when model confidence is HIGH (speech detected)
+    // isSpeech should be false when model confidence is LOW (no speech / noise)
+    const desiredState = isSpeech ? 'speech' : 'no-speech';
 
-    // Check if state has changed
+    // Initialize state on first frame
+    if (detectionApp.currentDisplayState === null) {
+        detectionApp.currentDisplayState = desiredState;
+        updateIndicatorDisplay(desiredState);
+    }
+
+    // Check if this frame matches the desired new state (different from current)
     if (detectionApp.currentDisplayState !== desiredState) {
-        detectionApp.stateFrameCount++;
+        // This frame wants to change state - increment consecutive counter
+        detectionApp.consecutiveFrames++;
 
-        // Only switch display if we've seen consistent state for threshold frames
-        if (detectionApp.stateFrameCount >= detectionApp.stateChangeThreshold) {
+        // Only switch display if we've seen N CONSECUTIVE frames in the new state
+        if (detectionApp.consecutiveFrames >= detectionApp.stateChangeThreshold) {
+            // Change the state
             detectionApp.currentDisplayState = desiredState;
-            detectionApp.stateFrameCount = 0;
+            detectionApp.consecutiveFrames = 0;
+            updateIndicatorDisplay(desiredState);
 
-            const newImageSrc = isNoisy ? 'assets/no_peech.png' : 'assets/speech.gif';
-
-            if (detectionElements.statusIndicator) {
-                const currentImageSrc = detectionElements.statusIndicator.src;
-
-                if (!currentImageSrc.endsWith(newImageSrc)) {
-                    detectionElements.statusIndicator.style.opacity = '0';
-
-                    setTimeout(() => {
-                        detectionElements.statusIndicator.src = newImageSrc;
-                        detectionElements.statusIndicator.style.opacity = '1';
-                    }, 200);
-                }
-
-                detectionElements.statusIndicator.classList.remove('processing', 'clean', 'noisy');
-                detectionElements.statusIndicator.classList.add(isNoisy ? 'noisy' : 'clean');
-            }
-
-            const statusLabel = isNoisy ? 'No Speech / Noise' : 'Speech Detected';
+            const statusLabel = isSpeech ? 'Speech Detected' : 'No Speech / Noise';
             if (detectionElements.statusText) {
                 detectionElements.statusText.textContent = statusLabel;
             }
+
+            // Log state change
+            addDetectionLog(`State changed to: ${statusLabel}`, 'success');
         }
     } else {
-        detectionApp.stateFrameCount = 0;
+        // This frame matches current state - reset consecutive counter
+        detectionApp.consecutiveFrames = 0;
     }
 
     // Always update confidence text
@@ -247,9 +250,9 @@ function updateNoiseStatus(isNoisy, confidence, vadProbability) {
         }
     }
 
-    // Log significant changes
+    // Log periodic updates
     if (detectionApp.frameCount % 50 === 0) {
-        const statusLabel = isNoisy ? 'No Speech / Noise' : 'Speech Detected';
+        const statusLabel = isSpeech ? 'Speech Detected' : 'No Speech / Noise';
         const probText = vadProbability !== undefined ?
             `VAD: ${(vadProbability * 100).toFixed(1)}%` :
             `Conf: ${(confidence * 100).toFixed(1)}%`;
@@ -258,11 +261,40 @@ function updateNoiseStatus(isNoisy, confidence, vadProbability) {
 }
 
 /**
- * Simulate noise detection for demo mode
+ * Update the indicator image and styling
+ */
+function updateIndicatorDisplay(state) {
+    if (!detectionElements.statusIndicator) return;
+
+    const newImageSrc = state === 'speech' ? 'assets/speech.gif' : 'assets/no_peech.png';
+    const currentImageSrc = detectionElements.statusIndicator.src;
+
+    // Only update if image needs to change
+    if (!currentImageSrc.endsWith(newImageSrc)) {
+        // Smooth fade transition
+        detectionElements.statusIndicator.style.opacity = '0';
+
+        setTimeout(() => {
+            detectionElements.statusIndicator.src = newImageSrc;
+            detectionElements.statusIndicator.style.opacity = '1';
+        }, 200);
+    }
+
+    // Update CSS classes
+    detectionElements.statusIndicator.classList.remove('processing', 'clean', 'noisy');
+    detectionElements.statusIndicator.classList.add(state === 'speech' ? 'clean' : 'noisy');
+}
+
+/**
+ * Simulate noise detection for demo mode (when backend is unavailable)
+ * Note: This is just for demonstration - real detection comes from backend
  */
 function simulateNoiseDetection() {
-    const isNoisy = Math.random() > 0.7;
-    const confidence = 0.6 + Math.random() * 0.3;
+    // Simulate more realistic speech patterns: 50/50 chance
+    const isNoisy = Math.random() > 0.5;
+    // Vary confidence more realistically (0.5 to 0.95)
+    const confidence = 0.5 + Math.random() * 0.45;
+
     onNoiseDetectionResult({ isNoisy, confidence, timestamp: Date.now() });
 }
 
